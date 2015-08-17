@@ -25,13 +25,12 @@
 using namespace std;
 
 
-
-// decouvrir l'IP serveur... broadcast ou multicast
-
 int DEFAULT_PORT = 12345;
-char DEFAULT_IF[] = "eth0";
+char local_host_name[] = "lo"; // utilisé pour ne pas choisir cette interface pour le serveur.
+char DEFAULT_IF[20];
 
-void printHelp(){
+void printHelp()
+{
     cout << "-p port pour choisir un port, le port par défaut est : " << DEFAULT_PORT << endl;
 }
 
@@ -68,14 +67,13 @@ int main(int argc, char *argv[])
      * Decouvrir l'adresse IP Local
      */
     struct ifaddrs *ifaddlist, *ifadd;
-    int n = 0;
     int res = getifaddrs(&ifaddlist);
     if(res == -1){
         perror("pb getifaddrs");
         exit(EXIT_FAILURE);
     }
 
-    for( n = 0, ifadd = ifaddlist; ifadd != NULL; ifadd = ifadd->ifa_next, n++ ){
+    for(ifadd = ifaddlist; ifadd != NULL; ifadd = ifadd->ifa_next ){
         if(ifadd == NULL)
             continue;
 
@@ -83,12 +81,13 @@ int main(int argc, char *argv[])
         int family = ifadd->ifa_addr->sa_family;
 
         /* Display interface name and family (including symbolic
-                          form of the latter for the common families) */
+           form of the latter for the common families)
+        */
 
         printf("%-8s %s (%d)\n", ifadd->ifa_name,
                (family == AF_PACKET) ? "AF_PACKET" :
-                                       (family == AF_INET) ? "AF_INET" :
-                                                             (family == AF_INET6) ? "AF_INET6" : "???", family);
+                         (family == AF_INET) ? "AF_INET" :
+                                   (family == AF_INET6) ? "AF_INET6" : "???", family);
 
         /* For an AF_INET* interface address, display the address */
 
@@ -104,14 +103,20 @@ int main(int argc, char *argv[])
             }
 
             printf("\t\taddress: <%s>\n", host);
-            if( family == AF_INET && strcmp(ifadd->ifa_name, DEFAULT_IF) == 0)
-                strcpy(DEFAULT_IF, host);
+            if( family == AF_INET)
+            {
+                if( strcmp(ifadd->ifa_name, local_host_name) != 0)
+                {
+                    strcpy(DEFAULT_IF, host);
+                }
+            }
         }
     }
     freeifaddrs(ifaddlist);
 
-    if (verbose)
-        cout << DEFAULT_IF << endl;
+    // TODO decommenter la ligne en dessous
+    //if (verbose)
+    cout << DEFAULT_IF << endl;
 
     /*
      * Creation Serveur
@@ -122,7 +127,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serv_addr;
     memset(&serv_addr, '0', sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serv_addr.sin_addr.s_addr = inet_addr(DEFAULT_IF);
     serv_addr.sin_port=htons(DEFAULT_PORT);
 
     // init socket
